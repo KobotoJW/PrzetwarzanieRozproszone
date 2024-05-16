@@ -1,0 +1,26 @@
+Inicjalizacja:
+-Ustal liczbę pszczółek (P), liczbę kwiatków (K) i liczbę trzcin (T).
+-Stwórz strukturę danych reprezentującą trzcinę, zawierającą informacje o ilości kokonów w trzcinie.
+-Stwórz listę trzcin, zmienną reprezentującą liczbę kwiatów, listę pszczółek.
+
+Działanie pszczółek:
+-Inicjalizacja kolejki żądań.
+-Inicjalizacja lokalnego zegara z losową wartością od 0 do P.
+-Wektor zegarów innych pszczół (Pszczoły lokalnie (Pl) = len(wektor)).
+-Każda pszczółka otrzymuje wartość zegara i zaczyna swoje działanie:
+-Wysyła żądanie do trzciny [REQ trzcina - ID + zegar + timestamp] do wszystkich i siebie, zegar++.
+-Czeka na swój [REQ trzcina] na szczycie kolejki i wektor zegarów ma conajmniej (Pl+1 - T) pozycje starsze.
+-Po otrzymaniu dostępu do trzciny:
+--Wysyła [Remove my oldest request - ID  + zegar + timestamp], zegar++.
+-- 1. Wysyła [REQ kwiat - ID + zegar + timestamp], zegar++.
+--Czeka na swój [REQ kwiat] na szczycie kolejki i wektor zegarów ma conajmniej (Pl+1 - K) pozycje starsze.
+--Wysyła [Remove my oldest request - ID  + zegar + timestamp], zegar++.
+--Zbiera nektar.
+--Składa jajo
+--Jeśli ma jeszcze jaja powrót do 1.
+--Gdy skończą się jaja umiera i jest usuwana
+
+Zakończenie:
+-Jeśli zginą wszystkie pszczółki, sprawdź stan trzcin.
+-Jeśli pszczółki nie złożyły jaja od kilku chwil, zakończ algorytm (unikanie nieskończonej pętli).
+
