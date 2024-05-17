@@ -41,19 +41,21 @@ void create_type() {
     MPI_Type_commit(&mpi_message_type);
 }
 
-void send_message(int type, int id, int clk){
+Message send_message(int type, int id, int clk){
     Message message;
     message.type = type;
     message.id = id;    
     message.clk = clk;
     message.timestamp = (long int) time(NULL);
 
-    MPI_Send(&message, 1, mpi_message_type, 0, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&message, 1, mpi_message_type, id, MPI_COMM_WORLD);
+
+    return message;
 }
 
-Message recieve_message(){
+Message recieve_message(int id){
     Message message;
-    MPI_Recv(&message, 1, mpi_message_type, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    MPI_Bcast(&message, 1, mpi_message_type, id, MPI_COMM_WORLD);
     return message;
 }
 
@@ -96,9 +98,12 @@ int main(int argc, char** argv) {
         trzciny[i].occupant_id = -1;
     }
 
-    send_message(REQ_TRZCINA, my_id, my_clock++);
+    Message message = send_message(REQ_TRZCINA, my_id, my_clock++);
+    clocks_vector[my_id] = my_clock;
+    message_board[last_filled++] = message;
+    
     while (1) {
-        Message message = recieve_message();
+        Message message = recieve_message(my_id);
         clocks_vector[message.id] = message.clk;
         //append message to the end of message board
         message_board[last_filled++] = message;
