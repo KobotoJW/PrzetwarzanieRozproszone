@@ -7,15 +7,20 @@
 #define K 3
 #define N 5
 #define REQ_TRZCINA 0
-#define FREE_TRCINA 1
-#define REQ_KWIAT 2
-#define FREE_KWIAT 3
-#define DELETE_LAST 4
+#define FREE_TRZCINA 1
+#define CONF_TRZCINA 2
+#define REQ_KWIAT 3
+#define CONF_KWIAT 4
+#define FREE_KWIAT 5
+#define DELETE_LAST 6
+
+#define WAITING_TRZCINA 10
+#define IN_TRZCINA 11
 
 typedef struct {
     int type;
     int id;
-    int clk;
+    int clk; //clock (in one case used to send trzcina.id)
     long int timestamp;
 } Message;
 
@@ -75,7 +80,9 @@ int compare(const void *a, const void *b) {
 
 int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);
+
     int last_filled = 0;
+    int flowers_occupied = 0;
 
     int bees_quant;
     MPI_Comm_size(MPI_COMM_WORLD, &bees_quant);
@@ -101,8 +108,74 @@ int main(int argc, char** argv) {
     Message message = send_message(REQ_TRZCINA, my_id, my_clock++);
     clocks_vector[my_id] = my_clock;
     message_board[last_filled++] = message;
+
+    int state = WAITING_TRZCINA;
+    int eggs_laid = 0;
     
-    while (1) {
+    while (state == WAITING_TRZCINA) {
+        Message message = recieve_message(my_id);
+        clocks_vector[message.id] = message.clk;
+        //append message to the end of message board
+        message_board[last_filled++] = message;
+        qsort(message_board, last_filled, sizeof(Message), compare);
+
+
+
+        if (message.type == DELETE_LAST) {
+            int i;
+            for (i = 0; i < last_filled; i++) {
+                if (message_board[i].id == message.id) {
+                    break;
+                }
+            }
+            if (i < last_filled) { // if found
+                for (int j = i; j < last_filled - 1; j++) {
+                    message_board[j] = message_board[j + 1];
+                }
+                last_filled--;
+            }
+        }
+
+        if (message.type == CONF_TRZCINA && state == WAITING_TRZCINA) {
+            for (int i = 0; i < T; i++) {
+                if (trzciny[i].id == message.clk) {
+                    trzciny[i].occupant_id = message.id;
+                    break;
+                }
+            }
+        }
+
+        if (message.type == FREE_TRZCINA) {
+            for (int i = 0; i < T; i++) {
+                if (trzciny[i].occupant_id == message.id) {
+                    trzciny[i].occupant_id = -1;
+                }
+            }
+        }
+
+        if (message.type == CONF_KWIAT) {
+            flowers_occupied++;
+        }
+
+        if (message.type == FREE_KWIAT) {
+            flowers_occupied--;
+        }
+
+        if (message_board[0].id == my_id && message_board[0].type == REQ_TRZCINA && state == WAITING_TRZCINA) {
+            for (int i = 0; i < T; i++) {
+                if (trzciny[i].occupant_id == -1 && trzciny[i].eggs < Tlimit) {
+                    trzciny[i].occupant_id = my_id;
+                    send_message(CONF_TRZCINA, my_id, i);
+                    send_message(DELETE_LAST, my_id, my_clock);
+                    last_filled = 0;
+                    state = IN_TRZCINA;
+                    break;
+                }
+            } 
+        }
+    }
+
+    while (state == IN_TRZCINA) {
         Message message = recieve_message(my_id);
         clocks_vector[message.id] = message.clk;
         //append message to the end of message board
@@ -124,17 +197,50 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (message_board[0].id == my_id && message_board[0].type == REQ_TRZCINA) {
+        if (message.type == CONF_KWIAT) {
+            flowers_occupied++;
+        }
+
+        if (message.type == FREE_KWIAT) {
+            flowers_occupied--;
+        }        
+
+        if (message_board[0].id == my_id && message_board[0].type == REQ_KWIAT && flowers_occupied < K) {
             for (int i = 0; i < T; i++) {
-                if (trzciny[i].occupant_id == -1) {
-                    trzciny[i].occupant_id = my_id;
+                if (trzciny[i].occupant_id == my_id) {
+                    trzciny[i].eggs++;
+                    eggs_laid++;
+
+                    send_message(CONF_KWIAT, my_id, my_clock);
+
                     send_message(DELETE_LAST, my_id, my_clock);
+                    int i;
+                    for (i = 0; i < last_filled; i++) {
+                        if (message_board[i].id == message.id) {
+                            break;
+                        }
+                    }
+                    if (i < last_filled) { // if found
+                        for (int j = i; j < last_filled - 1; j++) {
+                            message_board[j] = message_board[j + 1];
+                        }
+                        last_filled--;
+                    }
+
+                    send_message(FREE_KWIAT, my_id, my_clock);
                     break;
                 }
             }
+        }
+        if (eggs_laid == N) {
+            for (int i = 0; i < T; i++) {
+                if (trzciny[i].occupant_id == my_id) {
+                    trzciny[i].occupant_id = -1;
+                }
+            }
+            send_message(FREE_TRZCINA, my_id, my_clock);
             break;
         }
     }
-
     MPI_Finalize();
 }
