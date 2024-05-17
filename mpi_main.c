@@ -1,11 +1,13 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 
 #define T 3
 #define Tlimit 15
 #define K 3
 #define N 5
+
 #define REQ_TRZCINA 0
 #define FREE_TRZCINA 1
 #define CONF_TRZCINA 2
@@ -77,6 +79,9 @@ int compare(const void *a, const void *b) {
     return (messageA->id - messageB->id);
 }
 
+int randint(int min, int max) {
+        return min + rand() % (max - min + 1);
+    }
 
 int main(int argc, char** argv) {
     MPI_Init(NULL, NULL);

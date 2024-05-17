@@ -1,26 +1,64 @@
+Struktury:
+Message - struktura komunikacyjna (typ komunikatu, id nadawcy, zegar nadawcy, timestamp),
+Trzcina - (id trzciny, id pszczoły, która zajmuje trzcinę, liczba jaj),
+
+Wiadomości:
+- REQ_TRZCINA - żądanie dostępu
+- FREE_TRZCINA - ogłoszenie zwolnienia zasobu
+- CONF_TRZCINA - ogłoszenie zajęcia zasobu
+- REQ_KWIAT - żądanie dostępu
+- CONF_KWIAT - ogłoszenie zajęcia zasobu
+- FREE_KWIAT - ogłoszenie zwolnienia zasobu
+- DELETE_LAST - polecenie usunięcia najstarszej wiadomości nadawcy
+
+Stany:
+- WAITING_TRZCINA - czeka na dostęp do sekcji krytycznej (trzcina)
+- IN_TRZCINA - jest w sekcji krytycznej (trzcina),
+               czeka na dostęp do drugiej sekcji krytycznej (kwiaty),
+               dostaje dostęp.
+
 Inicjalizacja:
--Ustal liczbę pszczółek (P), liczbę kwiatków (K) i liczbę trzcin (T).
+-Ustal liczbę pszczółek (P), liczbę kwiatków (K), liczbę trzcin (T),
+ liczbę jaj (N), maksymalną liczbę jaj na trzcinę (Tlimit).
 -Stwórz strukturę danych reprezentującą trzcinę, zawierającą informacje o ilości kokonów w trzcinie.
--Stwórz listę trzcin, zmienną reprezentującą liczbę kwiatów, listę pszczółek.
+-Stwórz strukturę danych Message, służącą do komunikacji między procesami.
+-Inicjalizacja kolejki żądań (lista typu Message).
+-Inicjalizacja lokalnego zegara z losową wartością od 0 do P.
+-Inicjalizacja wektora zegarów innych pszczół.
+-Inicjalizacja zmiennej flowers_occupied jako 0.
 
 Działanie pszczółek:
--Inicjalizacja kolejki żądań.
--Inicjalizacja lokalnego zegara z losową wartością od 0 do P.
--Wektor zegarów innych pszczół (Pszczoły lokalnie (Pl) = len(wektor)).
+-Oczekiwanie na P REQ.
 -Każda pszczółka otrzymuje wartość zegara i zaczyna swoje działanie:
--Wysyła żądanie do trzciny [REQ trzcina - ID + zegar + timestamp] do wszystkich i siebie, zegar++.
--Czeka na swój [REQ trzcina] na szczycie kolejki i wektor zegarów ma conajmniej (Pl+1 - T) pozycje starsze.
+-Wysyła żądanie do dostępu do trzciny [REQ trzcina - ID + zegar + timestamp] do wszystkich i siebie, zegar++.
+-Czeka na swój [REQ trzcina] na szczycie kolejki i wolną trzcinę.
 -Po otrzymaniu dostępu do trzciny:
+--Wysyła [CONF_Trzcina - ID + id_trzciny + timestamp]
 --Wysyła [Remove my oldest request - ID  + zegar + timestamp], zegar++.
 -- 1. Wysyła [REQ kwiat - ID + zegar + timestamp], zegar++.
---Czeka na swój [REQ kwiat] na szczycie kolejki i wektor zegarów ma conajmniej (Pl+1 - K) pozycje starsze.
+--Czeka na swój [REQ kwiat] na szczycie kolejki i wolny kwiat.
 --Wysyła [Remove my oldest request - ID  + zegar + timestamp], zegar++.
---Zbiera nektar.
 --Składa jajo
---Jeśli ma jeszcze jaja powrót do 1.
---Gdy skończą się jaja umiera i jest usuwana
+--Jeśli ma jeszcze jaja wysyła [FREE kwiat - ID + zegar + timestamp] i powrót do 1.
+--Gdy skończą się jaja umiera i jest usuwana ([FREE Trzcina - ID + zegar + timestamp])
+
+Komunikacja:
+-Gdy otrzyma REQ dodaje go do listy requestów i sortuje listę requestów (priorytet: zegar -> timestamp -> id nadawcy).
+-Gdy otrzyma REMOVE_LAST odszukuje najstarszą wiadomość z id nadawcy i usuwa ją z kolejki.
+-Gdy otrzyma FREE_Trzcina odszukuje odpowiednią trzcinę i ustawia id pszczoły, która zajmuje trzcinę na -1.
+-Gdy otrzyma CONF_Trzcina odszukuje odpowiednią trzcinę i ustawia id pszczoły, która zajmuje trzcinę na id nadawcy.
+-Gdy otrzyma CONF_KWIAT: flowers_occupied++.
+-Gdy otrzyma FREE_KWIAT: flowers_occupied--.
 
 Zakończenie:
--Jeśli zginą wszystkie pszczółki, sprawdź stan trzcin.
--Jeśli pszczółki nie złożyły jaja od kilku chwil, zakończ algorytm (unikanie nieskończonej pętli).
+-Pszczoła ginie.
+-Wszystkie trzciny mają maksymalną liczbę jaj.
+
+Notatki:
+-Bez potwierdzania wejścia do sekcji krytycznej (wnioskowanie z requestów)
+-Kolejka req uwzględniać pierwsze n z góry zamiast pierwszego.
+-MPI recieve blokuje.
+-Nie używać Bcastu.
+
+DO 14 CZERWCA
 
