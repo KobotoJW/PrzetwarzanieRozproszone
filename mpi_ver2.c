@@ -12,6 +12,7 @@
 #define CONF_KWIAT 4
 #define FREE_KWIAT 5
 #define DELETE_LAST 6
+#define ACK 7
 
 typedef struct {
     int type;
@@ -31,6 +32,7 @@ Trzcina *trzciny;
 Message *request_queue;
 int local_clock;
 int flowers_occupied = 0;
+int acks_received = 0;
 Message process_message;
 
 MPI_Datatype MPI_MyMessage;
@@ -127,6 +129,11 @@ void initialize(int size) {
     Message process_message = {-1, -1, -1, -1};
 }
 
+void send_ack(int dest) {
+    Message ack_message = {ACK, rank, local_clock, 0};
+    MPI_Send(&ack_message, 1, MPI_MyMessage, dest, 0, MPI_COMM_WORLD);
+}
+
 void handle_message(Message msg) {
     //printf("Process %d received message from process %d of type: %d and clock: %d\n", rank, msg.sender_id, msg.type, msg.bee_clock);
     switch (msg.type) {
@@ -141,6 +148,7 @@ void handle_message(Message msg) {
             }
             sort_request_queue();
             pthread_mutex_unlock(&request_queue_mutex);
+            send_ack(msg.sender_id);
             break;
         case DELETE_LAST:
             remove_oldest_request(msg.sender_id);
@@ -155,6 +163,7 @@ void handle_message(Message msg) {
                 }
             }
             pthread_mutex_unlock(&trzciny_mutex);
+            P--;
             break;
         case CONF_TRZCINA:
             pthread_mutex_lock(&trzciny_mutex);
@@ -171,6 +180,7 @@ void handle_message(Message msg) {
             }
             sort_request_queue();
             pthread_mutex_unlock(&request_queue_mutex);
+            send_ack(msg.sender_id);
             break;
         case CONF_KWIAT:
             //printf("%d: Process %d received access to a flower\n", rank, msg.sender_id);
@@ -183,13 +193,16 @@ void handle_message(Message msg) {
             flowers_occupied--;
             pthread_mutex_unlock(&flowers_mutex);
             break;
+        case ACK:
+            acks_received++;
+            break;
     }
 }
 
 void receive_message(int source, Message *msg) {
     MPI_Recv(msg, 1, MPI_MyMessage, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     pthread_mutex_lock(&clock_mutex);
-    local_clock = (local_clock > msg->bee_clock ? local_clock : msg->bee_clock) + 1;
+    local_clock++;
     pthread_mutex_unlock(&clock_mutex);
 }
 
@@ -213,12 +226,6 @@ void print_current_queue() {
 }
 
 void bee_process2(int bee_id) {
-    pthread_mutex_unlock(&request_queue_mutex);
-    pthread_mutex_unlock(&trzciny_mutex);
-    pthread_mutex_unlock(&flowers_mutex);
-
- //   MPI_Barrier(MPI_COMM_WORLD);
-
     printf("I'm bee %d with clock: %d\n", bee_id, local_clock);
     
     // Initialize and send a reed request message
@@ -227,12 +234,12 @@ void bee_process2(int bee_id) {
     process_message.bee_clock = local_clock;
     process_message.timestamp = 0;
 
+    acks_received = 0;
     for (int i = 0; i < P; i++) {
         if (i != bee_id) {
             send_message(i, process_message);
         }
     }
-
     sleep(1);
 
     pthread_mutex_lock(&request_queue_mutex);
@@ -259,7 +266,8 @@ void bee_process2(int bee_id) {
         for (int i = 0; i < P; i++) {
             if (request_queue[i].type == REQ_TRZCINA && !inreed) {
                 //printf("Process %d is waiting for a reed\n", bee_id);
-                if (request_queue[i].sender_id == bee_id && reed_request_counter < T) {
+                if (request_queue[i].sender_id == bee_id && reed_request_counter <= T && acks_received >= P - 1) {
+                    acks_received = 0;
                     pthread_mutex_lock(&trzciny_mutex);
                     if (trzciny[reed_request_counter].id_pszczoly == -1) {
                         trzciny[reed_request_counter].id_pszczoly = bee_id;
@@ -276,10 +284,16 @@ void bee_process2(int bee_id) {
                                 send_message(i, process_message);
                             }
                         }
-                        pthread_mutex_unlock(&trzciny_mutex);
                         pthread_mutex_unlock(&request_queue_mutex);
 
                         break;
+                    } else {
+                        printf("Process %d cant find a free reed\n", bee_id);
+                        for (int i = 0; i < T; i++) {
+                            printf("%d: Reed %d: pszczola %d\n", bee_id, i, trzciny[i].id_pszczoly);
+                        }
+                        pthread_mutex_unlock(&trzciny_mutex);
+                        pthread_mutex_unlock(&request_queue_mutex);
                     }
                     pthread_mutex_unlock(&trzciny_mutex);
                 }
@@ -345,9 +359,10 @@ void bee_process2(int bee_id) {
             pthread_mutex_lock(&request_queue_mutex);
             for (int i = 0; i < P; i++) {
                 if (request_queue[i].type == REQ_KWIAT) {
-                    if (request_queue[i].sender_id == bee_id && flower_request_counter < K) {
+                    if (request_queue[i].sender_id == bee_id && flower_request_counter <= K && acks_received >= P - 1) {
                         inflower = 1;
                         pthread_mutex_unlock(&request_queue_mutex);
+                        acks_received = 0;
                         break;
                     }
                     flower_request_counter++;
@@ -385,7 +400,7 @@ void bee_process2(int bee_id) {
         process_message.sender_id = bee_id;
         process_message.bee_clock = local_clock;
         process_message.timestamp = 0;
-        //printf("Process %d received access to a flower\n", bee_id);
+        printf("Process %d received access to a flower\n", bee_id);
         
         for (int i = 0; i < P; i++) {
             if (i != bee_id) {
