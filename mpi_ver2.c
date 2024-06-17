@@ -57,7 +57,7 @@ void create_mpi_message_type() {
 
 void send_message(int dest, Message msg) {
     pthread_mutex_lock(&clock_mutex);
-    msg.bee_clock = ++local_clock;
+    msg.bee_clock = local_clock;
     pthread_mutex_unlock(&clock_mutex);
     MPI_Send(&msg, 1, MPI_MyMessage, dest, 0, MPI_COMM_WORLD);
 }
@@ -240,6 +240,9 @@ void bee_process2(int bee_id) {
             send_message(i, process_message);
         }
     }
+    pthread_mutex_lock(&clock_mutex);
+    local_clock++;
+    pthread_mutex_unlock(&clock_mutex);
     sleep(1);
 
     pthread_mutex_lock(&request_queue_mutex);
@@ -255,45 +258,49 @@ void bee_process2(int bee_id) {
     int reed_request_counter = 0;
 
     while (!inreed) {
-        sleep(1);
-        // printf("Process %d is waiting for a reed\n", bee_id);
-        // if (bee_id == 2) {
-        //     print_current_queue();
-        // }
+        //sleep(1);
         pthread_mutex_lock(&request_queue_mutex);
-        //printf("Bee %d past mutex\n", bee_id);
         sort_request_queue();
         for (int i = 0; i < P; i++) {
             if (request_queue[i].type == REQ_TRZCINA && !inreed) {
-                //printf("Process %d is waiting for a reed\n", bee_id);
-                if (request_queue[i].sender_id == bee_id && reed_request_counter <= T && acks_received >= P - 1) {
+                //printf("Process %d is waiting with %d/%d acks\n", bee_id, acks_received, P-1);
+                // for (int i = 0; i < P; i++) {
+                //     printf("%d: Request %d: type %d, sender %d, clock %d, time %d\n", bee_id, i, request_queue[i].type, request_queue[i].sender_id, request_queue[i].bee_clock, request_queue[i].timestamp);
+                // }
+                if (request_queue[i].sender_id == bee_id && reed_request_counter < T && acks_received >= P - 1) {
+                    // printf("Process %d is in if\n", bee_id);
                     acks_received = 0;
                     pthread_mutex_lock(&trzciny_mutex);
-                    if (trzciny[reed_request_counter].id_pszczoly == -1) {
-                        trzciny[reed_request_counter].id_pszczoly = bee_id;
-                        pthread_mutex_unlock(&trzciny_mutex);
-                        inreed = 1;
+                    for (int j = 0; j < T; j++) {
+                        if (trzciny[j].id_pszczoly == -1) {
+                            trzciny[j].id_pszczoly = bee_id;
+                            pthread_mutex_unlock(&trzciny_mutex);
+                            inreed = 1;
 
-                        process_message.type = CONF_TRZCINA;
-                        process_message.sender_id = bee_id;
-                        process_message.bee_clock = local_clock;
-                        process_message.timestamp = reed_request_counter;
+                            process_message.type = CONF_TRZCINA;
+                            process_message.sender_id = bee_id;
+                            process_message.bee_clock = local_clock;
+                            process_message.timestamp = j;
 
-                        for (int i = 0; i < P; i++) {
-                            if (i != bee_id) {
-                                send_message(i, process_message);
+                            for (int i = 0; i < P; i++) {
+                                if (i != bee_id) {
+                                    send_message(i, process_message);
+                                }
                             }
-                        }
-                        pthread_mutex_unlock(&request_queue_mutex);
+                            pthread_mutex_lock(&clock_mutex);
+                            local_clock++;
+                            pthread_mutex_unlock(&clock_mutex);
+                            pthread_mutex_unlock(&request_queue_mutex);
 
-                        break;
-                    } else {
-                        printf("Process %d cant find a free reed\n", bee_id);
-                        for (int i = 0; i < T; i++) {
-                            printf("%d: Reed %d: pszczola %d\n", bee_id, i, trzciny[i].id_pszczoly);
+                            break;
+                        } else {
+                            // printf("Process %d cant find a free reed\n", bee_id);
+                            // for (int i = 0; i < T; i++) {
+                            //     printf("%d: Reed %d: pszczola %d\n", bee_id, i, trzciny[i].id_pszczoly);
+                            // }
+                            pthread_mutex_unlock(&trzciny_mutex);
+                            pthread_mutex_unlock(&request_queue_mutex);
                         }
-                        pthread_mutex_unlock(&trzciny_mutex);
-                        pthread_mutex_unlock(&request_queue_mutex);
                     }
                     pthread_mutex_unlock(&trzciny_mutex);
                 }
@@ -303,30 +310,30 @@ void bee_process2(int bee_id) {
         pthread_mutex_unlock(&request_queue_mutex);
         reed_request_counter = 0;
     }
-    printf("Process %d received access to a reed\n", bee_id);
+    // printf("Process %d received access to a reed\n", bee_id);
 
-    process_message.type = DELETE_LAST;
-    process_message.sender_id = bee_id;
-    process_message.bee_clock = local_clock;
-    process_message.timestamp = 0;
+    // process_message.type = DELETE_LAST;
+    // process_message.sender_id = bee_id;
+    // process_message.bee_clock = local_clock;
+    // process_message.timestamp = 0;
 
-    pthread_mutex_lock(&request_queue_mutex);
-    for (int i = 0; i < P; i++) {
-        if (request_queue[i].sender_id == bee_id) {
-            request_queue[i].bee_clock = __INT_MAX__;
-        }
-    }
-    sort_request_queue();
-    pthread_mutex_unlock(&request_queue_mutex);
+    // pthread_mutex_lock(&request_queue_mutex);
+    // for (int i = 0; i < P; i++) {
+    //     if (request_queue[i].sender_id == bee_id) {
+    //         request_queue[i].bee_clock = __INT_MAX__;
+    //     }
+    // }
+    // sort_request_queue();
+    // pthread_mutex_unlock(&request_queue_mutex);
 
-    for (int i = 0; i < P; i++) {
-        if (i != bee_id) {
-            send_message(i, process_message);
-        }
-    }
+    // for (int i = 0; i < P; i++) {
+    //     if (i != bee_id) {
+    //         send_message(i, process_message);
+    //     }
+    // }
 
     while (N > 0) {
-        sleep(1);
+        //sleep(1);
         printf("Process %d is waiting for a flower with %d eggs\n", bee_id, N);
         process_message.type = REQ_KWIAT;
         process_message.sender_id = bee_id;
@@ -338,6 +345,9 @@ void bee_process2(int bee_id) {
                 send_message(i, process_message);
             }
         }
+        pthread_mutex_lock(&clock_mutex);
+        local_clock++;
+        pthread_mutex_unlock(&clock_mutex);
 
         pthread_mutex_lock(&request_queue_mutex);
         for (int i = 0; i < P; i++) {
@@ -352,14 +362,14 @@ void bee_process2(int bee_id) {
         int flower_request_counter = 0;
 
         while (!inflower) {
-            sleep(1);
+            //sleep(1);
             // printf("Process %d is waiting for a flower\n", bee_id);
             // printf("Process %d thinks there are %d free flowers\n", bee_id, K - flowers_occupied);
 
             pthread_mutex_lock(&request_queue_mutex);
             for (int i = 0; i < P; i++) {
-                if (request_queue[i].type == REQ_KWIAT) {
-                    if (request_queue[i].sender_id == bee_id && flower_request_counter <= K && acks_received >= P - 1) {
+                if (request_queue[i].type == REQ_KWIAT && flowers_occupied < K && !inflower) {
+                    if (request_queue[i].sender_id == bee_id && flower_request_counter < K && acks_received >= P - 1) {
                         inflower = 1;
                         pthread_mutex_unlock(&request_queue_mutex);
                         acks_received = 0;
@@ -372,6 +382,21 @@ void bee_process2(int bee_id) {
             flower_request_counter = 0;
         }
 
+        process_message.type = CONF_KWIAT;
+        process_message.sender_id = bee_id;
+        process_message.bee_clock = local_clock;
+        process_message.timestamp = 0;
+        printf("Process %d received access to a flower\n", bee_id);
+        
+        for (int i = 0; i < P; i++) {
+            if (i != bee_id) {
+                send_message(i, process_message);
+            }
+        }
+        pthread_mutex_lock(&clock_mutex);
+        local_clock++;
+        pthread_mutex_unlock(&clock_mutex);
+
         process_message.type = DELETE_LAST;
         process_message.sender_id = bee_id;
         process_message.bee_clock = local_clock;
@@ -382,6 +407,9 @@ void bee_process2(int bee_id) {
                 send_message(i, process_message);
             }
         }
+        pthread_mutex_lock(&clock_mutex);
+        local_clock++;
+        pthread_mutex_unlock(&clock_mutex);
 
         pthread_mutex_lock(&request_queue_mutex);
         for (int i = 0; i < P; i++) {
@@ -396,18 +424,6 @@ void bee_process2(int bee_id) {
         flowers_occupied++;
         pthread_mutex_unlock(&flowers_mutex);
 
-        process_message.type = CONF_KWIAT;
-        process_message.sender_id = bee_id;
-        process_message.bee_clock = local_clock;
-        process_message.timestamp = 0;
-        printf("Process %d received access to a flower\n", bee_id);
-        
-        for (int i = 0; i < P; i++) {
-            if (i != bee_id) {
-                send_message(i, process_message);
-            }
-        }
-
         process_message.type = FREE_KWIAT;
         process_message.sender_id = bee_id;
         process_message.bee_clock = local_clock;
@@ -418,47 +434,32 @@ void bee_process2(int bee_id) {
                 send_message(i, process_message);
             }
         }
+        pthread_mutex_lock(&clock_mutex);
+        local_clock++;
+        pthread_mutex_unlock(&clock_mutex);
 
         pthread_mutex_lock(&flowers_mutex);
         flowers_occupied--;
         pthread_mutex_unlock(&flowers_mutex);
 
         for (int i = 0; i < T; i++) {
-            pthread_mutex_unlock(&trzciny_mutex);
             if (trzciny[i].id_pszczoly == bee_id) {
+                pthread_mutex_lock(&trzciny_mutex);
                 trzciny[i].liczba_jaj++;
+                pthread_mutex_unlock(&trzciny_mutex);
                 break;
             }
-            pthread_mutex_unlock(&trzciny_mutex);
         }
 
         N--;
         //printf("Process %d laid an egg: %d\n", bee_id, 5 - N);
     }
 
-    // process_message.type = DELETE_LAST;
-    // process_message.sender_id = bee_id;
-    // process_message.bee_clock = local_clock;
-    // process_message.timestamp = 0;
-
-    // for (int i = 0; i < P; i++) {
-    //     if (i != bee_id) {
-    //         send_message(i, process_message);
-    //     }
-    // }
-
-    // pthread_mutex_lock(&request_queue_mutex);
-    // for (int i = 0; i < P; i++) {
-    //     if (request_queue[i].sender_id == bee_id) {
-    //         request_queue[i].bee_clock = __INT_MAX__;
-    //     }
-    // }
-    // sort_request_queue();
-    // pthread_mutex_unlock(&request_queue_mutex);
-
     for (int i = 0; i < T; i++) {
         if (trzciny[i].id_pszczoly == bee_id) {
+            pthread_mutex_lock(&trzciny_mutex);
             trzciny[i].id_pszczoly = -1;
+            pthread_mutex_unlock(&trzciny_mutex);
         }
     }
 
@@ -472,6 +473,9 @@ void bee_process2(int bee_id) {
             send_message(i, process_message);
         }
     }
+    pthread_mutex_lock(&clock_mutex);
+    local_clock++;
+    pthread_mutex_unlock(&clock_mutex);
 }
 
 int main(int argc, char **argv) {
