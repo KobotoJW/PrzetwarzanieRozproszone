@@ -1,0 +1,52 @@
+Initializing process 0
+Initializing process 1
+Initializing process 3
+I'm bee 1 with clock: 1
+I'm bee 0 with clock: 1
+I'm bee 3 with clock: 0
+Initializing process 2
+I'm bee 2 with clock: 1
+Process 1 is waiting for a flower with 5 eggs
+Process 1 received access to a flower
+Process 1 is waiting for a flower with 4 eggs
+Process 1 received access to a flower
+Process 0 is waiting for a flower with 5 eggs
+Process 1 is waiting for a flower with 3 eggs
+Process 3 is waiting for a flower with 5 eggs
+Process 3 received access to a flower
+Process 3 is waiting for a flower with 4 eggs
+Process 0 received access to a flower
+Process 1 received access to a flower
+Process 1 is waiting for a flower with 2 eggs
+Process 3 received access to a flower
+Process 3 is waiting for a flower with 3 eggs
+Process 0 is waiting for a flower with 4 eggs
+Process 3 received access to a flower
+Process 1 received access to a flower
+Process 1 is waiting for a flower with 1 eggs
+Process 1 received access to a flower
+Process 1 is a bee no more
+Process 0 received access to a flower
+Process 0 is waiting for a flower with 3 eggs
+Process 0 received access to a flower
+Process 0 is waiting for a flower with 2 eggs
+Process 0 received access to a flower
+Process 0 is waiting for a flower with 1 eggs
+Process 0 received access to a flower
+Process 0 is a bee no more
+Process 3 is waiting for a flower with 2 eggs
+Process 3 received access to a flower
+Process 3 is waiting for a flower with 1 eggs
+Process 3 received access to a flower
+Process 3 is a bee no more
+Process 2 is waiting for a flower with 5 eggs
+Process 2 received access to a flower
+Process 2 is waiting for a flower with 4 eggs
+Process 2 received access to a flower
+Process 2 is waiting for a flower with 3 eggs
+Process 2 received access to a flower
+Process 2 is waiting for a flower with 2 eggs
+Process 2 received access to a flower
+Process 2 is waiting for a flower with 1 eggs
+Process 2 received access to a flower
+Process 2 is a bee no more
