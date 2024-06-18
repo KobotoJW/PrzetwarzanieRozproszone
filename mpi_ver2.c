@@ -271,37 +271,37 @@ void bee_process2(int bee_id) {
                     // printf("Process %d is in if\n", bee_id);
                     acks_received = 0;
                     pthread_mutex_lock(&trzciny_mutex);
-                    for (int j = 0; j < T; j++) {
-                        if (trzciny[j].id_pszczoly == -1) {
-                            trzciny[j].id_pszczoly = bee_id;
-                            pthread_mutex_unlock(&trzciny_mutex);
-                            inreed = 1;
+                    //for (int j = 0; j < T; j++) {
+                    if (trzciny[bee_id%T].id_pszczoly == -1) {
+                        trzciny[bee_id%T].id_pszczoly = bee_id;
+                        pthread_mutex_unlock(&trzciny_mutex);
+                        inreed = 1;
 
-                            process_message.type = CONF_TRZCINA;
-                            process_message.sender_id = bee_id;
-                            process_message.bee_clock = local_clock;
-                            process_message.timestamp = j;
+                        process_message.type = CONF_TRZCINA;
+                        process_message.sender_id = bee_id;
+                        process_message.bee_clock = local_clock;
+                        process_message.timestamp = bee_id%T;
 
-                            for (int i = 0; i < P; i++) {
-                                if (i != bee_id) {
-                                    send_message(i, process_message);
-                                }
+                        for (int i = 0; i < P; i++) {
+                            if (i != bee_id) {
+                                send_message(i, process_message);
                             }
-                            pthread_mutex_lock(&clock_mutex);
-                            local_clock++;
-                            pthread_mutex_unlock(&clock_mutex);
-                            pthread_mutex_unlock(&request_queue_mutex);
-
-                            break;
-                        } else {
-                            // printf("Process %d cant find a free reed\n", bee_id);
-                            // for (int i = 0; i < T; i++) {
-                            //     printf("%d: Reed %d: pszczola %d\n", bee_id, i, trzciny[i].id_pszczoly);
-                            // }
-                            pthread_mutex_unlock(&trzciny_mutex);
-                            pthread_mutex_unlock(&request_queue_mutex);
                         }
+                        pthread_mutex_lock(&clock_mutex);
+                        local_clock++;
+                        pthread_mutex_unlock(&clock_mutex);
+                        pthread_mutex_unlock(&request_queue_mutex);
+                        printf("Bee %d is in reed %d\n", bee_id, P%bee_id);
+                        break;
+                    } else {
+                        // printf("Process %d cant find a free reed\n", bee_id);
+                        // for (int i = 0; i < T; i++) {
+                        //     printf("%d: Reed %d: pszczola %d\n", bee_id, i, trzciny[i].id_pszczoly);
+                        // }
+                        pthread_mutex_unlock(&trzciny_mutex);
+                        pthread_mutex_unlock(&request_queue_mutex);
                     }
+                    //}
                     pthread_mutex_unlock(&trzciny_mutex);
                 }
                 reed_request_counter++;
