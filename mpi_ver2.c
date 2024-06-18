@@ -271,7 +271,7 @@ void bee_process2(int bee_id) {
                     // printf("Process %d is in if\n", bee_id);
                     acks_received = 0;
                     pthread_mutex_lock(&trzciny_mutex);
-                    //for (int j = 0; j < T; j++) {
+                    //for (int j = 0; j < T; j++) {cx
                     if (trzciny[bee_id%T].id_pszczoly == -1) {
                         trzciny[bee_id%T].id_pszczoly = bee_id;
                         pthread_mutex_unlock(&trzciny_mutex);
@@ -291,7 +291,7 @@ void bee_process2(int bee_id) {
                         local_clock++;
                         pthread_mutex_unlock(&clock_mutex);
                         pthread_mutex_unlock(&request_queue_mutex);
-                        printf("Bee %d is in reed %d\n", bee_id, P%bee_id);
+                        printf("Bee %d is in reed %d\n", bee_id, bee_id%T);
                         break;
                     } else {
                         // printf("Process %d cant find a free reed\n", bee_id);
@@ -473,6 +473,7 @@ void bee_process2(int bee_id) {
             send_message(i, process_message);
         }
     }
+    sleep(1);
     pthread_mutex_lock(&clock_mutex);
     local_clock++;
     pthread_mutex_unlock(&clock_mutex);
